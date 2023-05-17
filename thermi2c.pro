@@ -16,7 +16,10 @@ CONFIG += sailfishapp
 
 SOURCES += src/thermi2c.cpp \
     src/MLX90640_API.cpp \
-    src/MLX90640_I2C_Driver.cpp
+    src/MLX90640_I2C_Driver.cpp \
+    src/conv.cpp \
+    src/i2cdriversingleton.cpp \
+    src/i2cif.cpp
 
 DISTFILES += qml/thermi2c.qml \
     qml/cover/CoverPage.qml \
@@ -43,4 +46,6 @@ TRANSLATIONS += translations/thermi2c-de.ts
 HEADERS += \
     src/MLX90640_API.h \
     src/MLX90640_I2C_Driver.h \
-    src/conv.h
+    src/conv.h \
+    src/i2cdriversingleton.h \
+    src/i2cif.h
