@@ -1,6 +1,4 @@
 #include "i2cif.h"
-
-#include "i2cif.h"
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 #include <sys/types.h>
@@ -15,6 +13,8 @@
 #include <sailfishapp.h>
 #include "conv.h"
 #include <unistd.h>
+#include <errno.h>
+#define DEFAULT_I2C_DEV QString("/dev/i2c-1/")
 
 I2cif::I2cif(QObject *parent) :
     QObject(parent)
@@ -100,6 +100,111 @@ bool I2cif::tohVddGet()
  *
  */
 
+Q_INVOKABLE void I2cif::i2cWrite(const uint8_t &slaveAddr, const uint16_t &writeAddress, const uint16_t &data){
+    int file;
+    char buf[3];
+
+    QByteArray tmpBa = DEFAULT_I2C_DEV.toUtf8();
+    const char* devNameChar = tmpBa.constData();
+
+    fprintf(stderr, "writing to address %02x: ", slaveAddr);
+
+    if ((file = open (devNameChar, O_RDWR)) < 0)
+    {
+        fprintf(stderr,"open error\n");
+        emit i2cError();
+        return;
+    }
+
+    if (ioctl(file, I2C_SLAVE, slaveAddr) < 0)
+    {
+        close(file);
+        fprintf(stderr,"ioctl error\n");
+        emit i2cError();
+        return;
+    }
+
+    // prepare buffer to write
+    buf[0] = (writeAddress >> 8) & 0xFF;   // writeAddress high byte
+    buf[1] = writeAddress & 0xFF;          // writeAddress low byte
+    buf[2] = data & 0xFF;                  // data
+
+    /* write the data */
+    if (write(file, buf, sizeof(buf)) != sizeof(buf))
+    {
+        close(file);
+        fprintf(stderr,"write error\n");
+        emit i2cError();
+        return;
+    }
+
+    close(file);
+
+    fprintf(stderr,"write ok\n");
+
+    emit i2cWriteOk();
+
+}
+
+void I2cif::i2cRead(const uint8_t &slaveAddr, const uint16_t &startAddress, const uint16_t &nMemAddressRead, uint16_t *data)
+{
+    int file;
+    char buf[2];
+    const char* devNameChar = "/dev/i2c-1";
+
+    fprintf(stderr, "reading from address %02x count %d\n", slaveAddr, nMemAddressRead);
+
+    if ((file = open (devNameChar, O_RDWR)) < 0)
+    {
+        fprintf(stderr,"open error %d, %s\n",errno, devNameChar);
+        emit i2cError();
+        return;
+    }
+
+    if (ioctl(file, I2C_SLAVE, slaveAddr) < 0)
+    {
+        close(file);
+        fprintf(stderr,"ioctl error\n");
+        emit i2cError();
+        return;
+    }
+
+    /* Read data */
+    for (int i = 0; i < nMemAddressRead; i++)
+    {
+        /* Write start address */
+        buf[0] = ((startAddress + i) >> 8) & 0xFF; // startAddress high byte
+        buf[1] = (startAddress + i) & 0xFF;        // startAddress low byte
+        if (write(file, buf, sizeof(buf)) != sizeof(buf))
+        {
+            close(file);
+            fprintf(stderr,"write error\n");
+            emit i2cError();
+            return;
+        }
+
+        if (read(file, buf, sizeof(buf)) != sizeof(buf))
+        {
+            close(file);
+            fprintf(stderr,"read error\n");
+            emit i2cError();
+            return;
+        }
+        data[i] = ((uint16_t)buf[0] << 8) | buf[1]; // Combine high and low bytes into a 16-bit data
+    }
+
+    close(file);
+
+    fprintf(stderr, "read ");
+    for (int i = 0; i < nMemAddressRead; i++)
+    {
+        fprintf(stderr, "%04x ", data[i]);
+    }
+    fprintf(stderr, "\n");
+
+    emit i2cReadResultChanged();
+}
+
 void I2cif::i2cWrite(QString devName, unsigned char address, QString data)
 {
     int file;
@@ -169,20 +274,42 @@ void I2cif::i2cWrite(QString devName, unsigned char address, QString data)
 void I2cif::i2cRead(QString devName, unsigned char address, int count)
 {
     int file;
-    char buf[200];
+    const int CHUNK_SIZE = 200;
+    char buf[CHUNK_SIZE];
     Conv conv;
+    int bytesRead = 0;
+    const int MAX_ATTEMPTS = 3;
+    int attempt = 0;
 
     m_readResult = "";
-    //emit i2cReadResultChanged();
 
     QByteArray tmpBa = devName.toUtf8();
     const char* devNameChar = tmpBa.constData();
 
     fprintf(stderr, "reading from address %02x count %d\n", address, count);
 
-    if ((file = open (devNameChar, O_RDWR)) < 0)
+    do
     {
-        fprintf(stderr,"open error\n");
+        if ((file = open (devNameChar, O_RDWR)) < 0)
+        {
+            perror("open");
+            if (errno == EBUSY)
+            {
+                fprintf(stderr, "i2c bus is busy!\n");
+                usleep(50000); // wait for 50 ms
+                continue;
+            }else{
+                fprintf(stderr, "got error: %d\n", errno);
+            }
+            emit i2cError();
+            return;
+        }
+        break;
+    } while (++attempt < MAX_ATTEMPTS);
+
+    if (attempt == MAX_ATTEMPTS)
+    {
+        fprintf(stderr, "Failed to open the device after %d attempts\n", attempt);
         emit i2cError();
         return;
     }
@@ -190,32 +317,41 @@ void I2cif::i2cRead(QString devName, unsigned char address, int count)
     if (ioctl(file, I2C_SLAVE, address) < 0)
     {
         close(file);
-        fprintf(stderr,"ioctl error\n");
+        perror("ioctl");
         emit i2cError();
         return;
     }
 
-    /* Read data */
-    if (read( file, buf, count ) != count)
+    while(bytesRead < count)
     {
-        close(file);
-        fprintf(stderr,"read error\n");
-        emit i2cError();
-        return;
+        int chunk = count - bytesRead;
+        if(chunk > CHUNK_SIZE)
+        {
+            chunk = CHUNK_SIZE;
+        }
+
+        /* Read data */
+        if (read( file, buf, chunk ) != chunk)
+        {
+            close(file);
+            perror("read");
+            emit i2cError();
+            return;
+        }
+
+        /* copy buf to m_readResult */
+        fprintf(stderr, "read ");
+        for (int i=0; i<chunk ; i++)
+        {
+            m_readResult = m_readResult + conv.toHex(buf[i],2) + " ";
+            fprintf(stderr, "%02x ", buf[i]);
+        }
+        fprintf(stderr, "\n");
+
+        bytesRead += chunk;
     }
 
     close(file);
-
-    /* copy buf to m_readResult */
-    int i;
-
-    fprintf(stderr, "read ");
-    for (i=0; i<count ; i++)
-    {
-        m_readResult = m_readResult + conv.toHex(buf[i],2) + " ";
-        fprintf(stderr, "%02x ", buf[i]);
-    }
-    fprintf(stderr, "\n");
 
     emit i2cReadResultChanged();
 }

@@ -15,8 +15,8 @@ TARGET = thermi2c
 CONFIG += sailfishapp
 
 SOURCES += src/thermi2c.cpp \
-    src/MLX90640_API.cpp \
-    src/MLX90640_I2C_Driver.cpp \
+    src/mlx90640_API.cpp \
+    src/mlx90640_I2C_Driver.cpp \
     src/conv.cpp \
     src/i2cdriversingleton.cpp \
     src/i2cif.cpp
@@ -44,8 +44,8 @@ CONFIG += sailfishapp_i18n
 TRANSLATIONS += translations/thermi2c-de.ts
 
 HEADERS += \
-    src/MLX90640_API.h \
-    src/MLX90640_I2C_Driver.h \
+    src/mlx90640_API.h \
+    src/mlx90640_I2C_Driver.h \
     src/conv.h \
     src/i2cdriversingleton.h \
     src/i2cif.h

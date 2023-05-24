@@ -1,43 +1,61 @@
 import QtQuick 2.0
 import Sailfish.Silica 1.0
+import harbour.i2ctool.I2cif 1.0
+import melexis.driver 1.0
 
 Page {
-    id: page
+    id: probePage
+    property string deviceName: "/dev/i2c-1"
 
-    // The effective value will be restricted by ApplicationWindow.allowedOrientations
     allowedOrientations: Orientation.All
+    SilicaFlickable
+    {
+    Grid
+                {
+                    Button
+                    {
+                        id: probeBTN
+                        text: "check camera present"
+                        onClicked: {probeBTN.text="probing..."; i2cif.tohVddSet("on"); i2cif.i2cProbe(deviceName)}
+                    }
+                    Label
+                    {
 
-    // To enable PullDownMenu, place our content in a SilicaFlickable
-    SilicaFlickable {
-        anchors.fill: parent
+                        id: resultLabel
+                        text: "0"
+                    }
 
-        // PullDownMenu and PushUpMenu must be declared in SilicaFlickable, SilicaListView or SilicaGridView
-        PullDownMenu {
-            MenuItem {
-                text: qsTr("Show Page 2")
-                onClicked: pageStack.animatorPush(Qt.resolvedUrl("SecondPage.qml"))
+                }
+    }
+
+    I2cif
+    {
+        id: i2cif
+
+        onI2cProbingChanged:
+        {
+            var results = i2cif.i2cProbingStatus;
+            for (var i=0 ; i<i2cif.i2cProbingStatus.length ; i++)
+            {
+                var res = results[i]
+                if(res === "ok"){
+                    resultLabel.text = i;
+                    break;
+                }
             }
+
+            probeBTN.text = "probe done";
+            thermal.fuzzyInit();
         }
+    }
 
-        // Tell SilicaFlickable the height of its content.
-        contentHeight: column.height
+    MLX90640{
+        id: thermal
 
-        // Place our content in a Column.  The PageHeader is always placed at the top
-        // of the page, followed by our content.
-        Column {
-            id: column
-
-            width: page.width
-            spacing: Theme.paddingLarge
-            PageHeader {
-                title: qsTr("UI Template")
-            }
-            Label {
-                x: Theme.horizontalPageMargin
-                text: qsTr("Hello Sailors")
-                color: Theme.secondaryHighlightColor
-                font.pixelSize: Theme.fontSizeExtraLarge
-            }
+        onDataReady:
+        {
+            var image = thermal.imageVect;
+            resultLabel.text = image[200];
         }
     }
 }

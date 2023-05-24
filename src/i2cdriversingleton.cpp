@@ -1,6 +1,6 @@
 #include "i2cdriversingleton.h"
 
-I2cif* i2cDriverSingleton::instance;    //instance declaration for the static variable in the singleton
+I2cif* i2cDriverSingleton::instance = nullptr;    //instance declaration for the static variable in the singleton
 
 I2cif* i2cDriverSingleton::getinstance()
 {
@@ -13,5 +13,6 @@ I2cif* i2cDriverSingleton::getinstance()
 void i2cDriverSingleton::cleanup(){
     if(instance != nullptr){
         instance->tohVddSet(QString("off"));
+        delete instance;
     }
 }
