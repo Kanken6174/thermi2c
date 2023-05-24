@@ -17,7 +17,7 @@ void mlx90640_I2CInit(void){
 /// \return 0 if success
 ///
 int mlx90640_I2CGeneralReset(void){
-
+    return 0;
 }
 
 ///

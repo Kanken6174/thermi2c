@@ -20,8 +20,7 @@
 
 int MLX90640::mlx90640_DumpEE(uint8_t slaveAddr, uint16_t *eeData)
 {
-     //return mlx90640_I2CRead(slaveAddr, mlx90640_EEPROM_START_ADDRESS, mlx90640_EEPROM_DUMP_NUM, eeData);
-    return mlx90640_I2CRead(slaveAddr, 0x00, 1300, eeData);
+     return mlx90640_I2CRead(slaveAddr, mlx90640_EEPROM_START_ADDRESS, mlx90640_EEPROM_DUMP_NUM, eeData);
 }
 
 int MLX90640::mlx90640_SynchFrame(uint8_t slaveAddr)

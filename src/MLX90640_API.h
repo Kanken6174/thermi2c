@@ -149,12 +149,15 @@ public:
 
         int status;
         status = mlx90640_DumpEE (slaveAddress, eeMLX90640);
-        //status = mlx90640_ExtractParameters(eeMLX90640, &mlx90640);
-        //status = mlx90640_GetFrameData (0x33, mlx90640Frame);
-        //mlx90640_GetImage(mlx90640Frame, &mlx90640);
+        status = mlx90640_ExtractParameters(eeMLX90640, &mlx90640);
+        status = mlx90640_GetFrameData (0x33, mlx90640Frame);
+        mlx90640_GetImage(mlx90640Frame, &mlx90640);
+        for (int i = 0; i < 834; ++i) {
+            imageVect[i] = mlx90640Frame[i];
+        }
     }
 
-    MLX90640() : imageVect(768){}
+    MLX90640() : imageVect(834){}
 
     QVector<float> imageVect;
 protected:

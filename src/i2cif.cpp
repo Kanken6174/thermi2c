@@ -14,6 +14,11 @@
 #include "conv.h"
 #include <unistd.h>
 #include <errno.h>
+#include <stdint.h>
+#include <iostream>
+#include <iomanip>
+#include <netinet/in.h>
+
 #define DEFAULT_I2C_DEV QString("/dev/i2c-1/")
 
 I2cif::I2cif(QObject *parent) :
@@ -149,19 +154,88 @@ Q_INVOKABLE void I2cif::i2cWrite(const uint8_t &slaveAddr, const uint16_t &write
 void I2cif::i2cRead(const uint8_t &slaveAddr, const uint16_t &startAddress, const uint16_t &nMemAddressRead, uint16_t *data)
 {
     int file;
-    char buf[2];
-    const char* devNameChar = "/dev/i2c-1";
+    Conv conv;
+    m_readResult = QString();
 
-    fprintf(stderr, "reading from address %02x count %d\n", slaveAddr, nMemAddressRead);
+    const char* devNameChar = "/dev/i2c-1";
 
     if ((file = open (devNameChar, O_RDWR)) < 0)
     {
-        fprintf(stderr,"open error %d, %s\n",errno, devNameChar);
+        fprintf(stderr,"open error\n");
         emit i2cError();
         return;
     }
 
-    if (ioctl(file, I2C_SLAVE, slaveAddr) < 0)
+    struct i2c_rdwr_ioctl_data i2c_data;
+    struct i2c_msg msg[2];
+    __u8 regAddrBytes[2] = {0,0};
+    regAddrBytes[0] = (startAddress >> 8) & 0xFF; // High byte
+    regAddrBytes[1] = startAddress & 0xFF; // Low byte
+    i2c_data.msgs = msg;
+    i2c_data.nmsgs = 2;
+
+    i2c_data.msgs[0].addr = slaveAddr;
+    i2c_data.msgs[0].flags = 0;
+    i2c_data.msgs[0].len =  2;
+    i2c_data.msgs[0].buf = regAddrBytes;
+
+    i2c_data.msgs[1].addr = slaveAddr;
+    i2c_data.msgs[1].flags = I2C_M_RD;
+    i2c_data.msgs[1].len = nMemAddressRead;
+    i2c_data.msgs[1].buf = (__u8 *)data;
+
+    int ret = ioctl(file, I2C_RDWR, &i2c_data);
+
+    if (ret < 0)
+    {
+            fprintf(stderr, "read data fail %d\n", ret);
+            emit i2cError();
+            return;
+    }
+
+    close(file);
+
+    fprintf(stderr, "read ");
+    for (int i=0; i<nMemAddressRead ; i++)
+    {
+        data[i] = htons(data[i]);
+        m_readResult = m_readResult + conv.toHex(data[i],2) + " ";
+        fprintf(stderr, "%02x ", data[i]);
+    }
+    fprintf(stderr, "\n");
+
+    emit i2cReadResultChanged();
+}
+
+
+
+/*
+ * I2C Read function
+ *
+ */
+
+void I2cif::i2cRead(QString devName, unsigned char address, int count)
+{
+    int file;
+    char buf[200];
+    Conv conv;
+
+    m_readResult = "";
+    //emit i2cReadResultChanged();
+
+    QByteArray tmpBa = devName.toUtf8();
+    const char* devNameChar = tmpBa.constData();
+
+    fprintf(stderr, "reading from address %02x count %d\n", address, count);
+
+    if ((file = open (devNameChar, O_RDWR)) < 0)
+    {
+        fprintf(stderr,"open error\n");
+        emit i2cError();
+        return;
+    }
+
+    if (ioctl(file, I2C_SLAVE, address) < 0)
     {
         close(file);
         fprintf(stderr,"ioctl error\n");
@@ -170,41 +244,30 @@ void I2cif::i2cRead(const uint8_t &slaveAddr, const uint16_t &startAddress, cons
     }
 
     /* Read data */
-    for (int i = 0; i < nMemAddressRead; i++)
+    if (read( file, buf, count ) != count)
     {
-        /* Write start address */
-        buf[0] = ((startAddress + i) >> 8) & 0xFF; // startAddress high byte
-        buf[1] = (startAddress + i) & 0xFF;        // startAddress low byte
-        if (write(file, buf, sizeof(buf)) != sizeof(buf))
-        {
-            close(file);
-            fprintf(stderr,"write error\n");
-            emit i2cError();
-            return;
-        }
-
-        if (read(file, buf, sizeof(buf)) != sizeof(buf))
-        {
-            close(file);
-            fprintf(stderr,"read error\n");
-            emit i2cError();
-            return;
-        }
-        data[i] = ((uint16_t)buf[0] << 8) | buf[1]; // Combine high and low bytes into a 16-bit data
+        close(file);
+        fprintf(stderr,"read error\n");
+        emit i2cError();
+        return;
     }
 
     close(file);
 
+    /* copy buf to m_readResult */
+    int i;
+
     fprintf(stderr, "read ");
-    for (int i = 0; i < nMemAddressRead; i++)
+    for (i=0; i<count ; i++)
     {
-        fprintf(stderr, "%04x ", data[i]);
+        m_readResult = m_readResult + conv.toHex(buf[i],2) + " ";
+        fprintf(stderr, "%02x ", buf[i]);
     }
     fprintf(stderr, "\n");
 
     emit i2cReadResultChanged();
 }
-
+//--------------------------------------------------------------------------------
 void I2cif::i2cWrite(QString devName, unsigned char address, QString data)
 {
     int file;
@@ -266,95 +329,7 @@ void I2cif::i2cWrite(QString devName, unsigned char address, QString data)
 
 }
 
-/*
- * I2C Read function
- *
- */
 
-void I2cif::i2cRead(QString devName, unsigned char address, int count)
-{
-    int file;
-    const int CHUNK_SIZE = 200;
-    char buf[CHUNK_SIZE];
-    Conv conv;
-    int bytesRead = 0;
-    const int MAX_ATTEMPTS = 3;
-    int attempt = 0;
-
-    m_readResult = "";
-
-    QByteArray tmpBa = devName.toUtf8();
-    const char* devNameChar = tmpBa.constData();
-
-    fprintf(stderr, "reading from address %02x count %d\n", address, count);
-
-    do
-    {
-        if ((file = open (devNameChar, O_RDWR)) < 0)
-        {
-            perror("open");
-            if (errno == EBUSY)
-            {
-                fprintf(stderr, "i2c bus is busy!\n");
-                usleep(50000); // wait for 50 ms
-                continue;
-            }else{
-                fprintf(stderr, "got error: %d\n", errno);
-            }
-            emit i2cError();
-            return;
-        }
-        break;
-    } while (++attempt < MAX_ATTEMPTS);
-
-    if (attempt == MAX_ATTEMPTS)
-    {
-        fprintf(stderr, "Failed to open the device after %d attempts\n", attempt);
-        emit i2cError();
-        return;
-    }
-
-    if (ioctl(file, I2C_SLAVE, address) < 0)
-    {
-        close(file);
-        perror("ioctl");
-        emit i2cError();
-        return;
-    }
-
-    while(bytesRead < count)
-    {
-        int chunk = count - bytesRead;
-        if(chunk > CHUNK_SIZE)
-        {
-            chunk = CHUNK_SIZE;
-        }
-
-        /* Read data */
-        if (read( file, buf, chunk ) != chunk)
-        {
-            close(file);
-            perror("read");
-            emit i2cError();
-            return;
-        }
-
-        /* copy buf to m_readResult */
-        fprintf(stderr, "read ");
-        for (int i=0; i<chunk ; i++)
-        {
-            m_readResult = m_readResult + conv.toHex(buf[i],2) + " ";
-            fprintf(stderr, "%02x ", buf[i]);
-        }
-        fprintf(stderr, "\n");
-
-        bytesRead += chunk;
-    }
-
-    close(file);
-
-    emit i2cReadResultChanged();
-}
 /*
  * I2C write then read with repeated stop
  */
