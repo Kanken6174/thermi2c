@@ -91,6 +91,26 @@ class MLX90640 : public QObject
     Q_OBJECT
 
 public:
+    Q_PROPERTY(bool initialized READ getInitialized WRITE setInitialized NOTIFY initializedChanged)
+    Q_PROPERTY(QVector<float> imageVect READ getImageVect NOTIFY dataReady)
+
+    QVector<float> getImageVect() const {
+        return this->imageVect;
+    }
+
+    bool initialized = false;
+
+    bool getInitialized() {
+        return this->initialized;
+    }
+
+    void setInitialized(bool val) {
+        if (this->initialized != val) {
+            this->initialized = val;
+            emit initializedChanged();
+        }
+    }
+
     typedef struct
         {
             int16_t kVdd;
@@ -122,6 +142,9 @@ public:
             uint16_t outlierPixels[5];
         } paramsMLX90640;
 
+    unsigned char slaveAddress = 0x33;
+    paramsMLX90640 mlx90640;
+
     int mlx90640_DumpEE(uint8_t slaveAddr, uint16_t *eeData);
     int mlx90640_SynchFrame(uint8_t slaveAddr);
     int mlx90640_TriggerMeasurement(uint8_t slaveAddr);
@@ -129,7 +152,7 @@ public:
     int mlx90640_ExtractParameters(uint16_t *eeData, paramsMLX90640 *MLX90640);
     Q_INVOKABLE float mlx90640_GetVdd(uint16_t *frameData, const paramsMLX90640 *params);
     Q_INVOKABLE float mlx90640_GetTa(uint16_t *frameData, const paramsMLX90640 *params);
-    Q_INVOKABLE void mlx90640_GetImage(uint16_t *frameData, const paramsMLX90640 *params);
+    Q_INVOKABLE void mlx90640_GetImage(uint16_t *frameData, const paramsMLX90640 *params, float *result);
     void mlx90640_CalculateTo(uint16_t *frameData, const paramsMLX90640 *params, float emissivity, float tr, float *result);
     Q_INVOKABLE int mlx90640_SetResolution(uint8_t slaveAddr, uint8_t resolution);
     int mlx90640_GetCurResolution(uint8_t slaveAddr);
@@ -142,22 +165,39 @@ public:
     void mlx90640_BadPixelsCorrection(uint16_t *pixels, float *to, int mode, paramsMLX90640 *params);
 
     Q_INVOKABLE void fuzzyInit(){
-        unsigned char slaveAddress = 0x33;
-        static uint16_t eeMLX90640[832];
-        static uint16_t mlx90640Frame[834];
-        paramsMLX90640 mlx90640;
-
         int status;
+        status = mlx90640_SetRefreshRate (0x33,0x05);   //16hz
+        status = mlx90640_SetResolution(0x33,0x00);     //16 bit res
+        status = mlx90640_SetChessMode (0x33);          //chess interlacing mode
+        getData();                                      //test read(initial)
+
+        // Print out the array
+        for (int i = 0; i < imageVect.size(); ++i) {
+            fprintf(stderr, "ImageVect[%d]: %f\n", i, imageVect[i]);
+        }
+
+        emit initializedChanged();
+    }
+
+    Q_INVOKABLE void getData(){
+        uint16_t eeMLX90640[832];
+        uint16_t mlx90640Frame[834];
+        float mlx90640Image[768];
+        int status;
+
         status = mlx90640_DumpEE (slaveAddress, eeMLX90640);
         status = mlx90640_ExtractParameters(eeMLX90640, &mlx90640);
         status = mlx90640_GetFrameData (0x33, mlx90640Frame);
-        mlx90640_GetImage(mlx90640Frame, &mlx90640);
-        for (int i = 0; i < 834; ++i) {
-            imageVect[i] = mlx90640Frame[i];
+        mlx90640_GetImage(mlx90640Frame, &mlx90640, mlx90640Image);
+
+        for (int i = 0; i < 767; ++i) {
+            imageVect[i] = mlx90640Image[i];
         }
+
+        emit dataReady();
     }
 
-    MLX90640() : imageVect(834){}
+    MLX90640() : imageVect(768){}
 
     QVector<float> imageVect;
 protected:
@@ -182,5 +222,6 @@ protected:
     int ValidateAuxData(uint16_t *auxData);
 signals:
     void dataReady();
+    void initializedChanged();
 };
 #endif

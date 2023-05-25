@@ -1,61 +1,60 @@
-import QtQuick 2.0
 import Sailfish.Silica 1.0
 import harbour.i2ctool.I2cif 1.0
 import melexis.driver 1.0
+import QtQuick 2.0
 
 Page {
-    id: probePage
-    property string deviceName: "/dev/i2c-1"
+    id: mainPage
+    property bool isInitialized: false
 
-    allowedOrientations: Orientation.All
-    SilicaFlickable
-    {
-    Grid
-                {
-                    Button
-                    {
-                        id: probeBTN
-                        text: "check camera present"
-                        onClicked: {probeBTN.text="probing..."; i2cif.tohVddSet("on"); i2cif.i2cProbe(deviceName)}
-                    }
-                    Label
-                    {
-
-                        id: resultLabel
-                        text: "0"
-                    }
-
-                }
+    MLX90640 {
+        id: thermal
     }
 
-    I2cif
-    {
-        id: i2cif
+    SilicaFlickable {
+        anchors.fill: parent
 
-        onI2cProbingChanged:
-        {
-            var results = i2cif.i2cProbingStatus;
-            for (var i=0 ; i<i2cif.i2cProbingStatus.length ; i++)
-            {
-                var res = results[i]
-                if(res === "ok"){
-                    resultLabel.text = i;
-                    break;
+        Column {
+            anchors.horizontalCenter: parent.horizontalCenter
+
+            Button {
+                id: startButton
+                text: mainPage.isInitialized ? "Stop" : "Start"
+                onClicked: {
+                    if(mainPage.isInitialized){
+                        mainPage.isInitialized = false;
+                        pollingTimer.stop();
+                    }else{
+                        thermal.fuzzyInit();
+                        //mainPage.isInitialized = true;
+                        //pollingTimer.start();
+                    }
                 }
             }
 
-            probeBTN.text = "probe done";
-            thermal.fuzzyInit();
+            Grid {
+                id: grid
+                columns: 32
+
+                Repeater {
+                    model: 768
+                    delegate: Rectangle {
+                        width: 15
+                        height: 15
+                        color: (index % 64 < 32) ? (index % 2 === 0 ? "red" : "blue") : (index % 2 === 0 ? "blue" : "red")
+                    }
+                }
+            }
         }
     }
 
-    MLX90640{
-        id: thermal
-
-        onDataReady:
-        {
-            var image = thermal.imageVect;
-            resultLabel.text = image[200];
+    Timer {
+        id: pollingTimer
+        interval: 1000
+        repeat: true
+        running: false
+        onTriggered: {
+            thermal.getData();
         }
     }
 }

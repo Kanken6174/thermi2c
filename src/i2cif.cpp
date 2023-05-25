@@ -107,10 +107,9 @@ bool I2cif::tohVddGet()
 
 Q_INVOKABLE void I2cif::i2cWrite(const uint8_t &slaveAddr, const uint16_t &writeAddress, const uint16_t &data){
     int file;
-    char buf[3];
+    __u8 buf[4];
 
-    QByteArray tmpBa = DEFAULT_I2C_DEV.toUtf8();
-    const char* devNameChar = tmpBa.constData();
+    const char* devNameChar = "/dev/i2c-1";
 
     fprintf(stderr, "writing to address %02x: ", slaveAddr);
 
@@ -129,13 +128,19 @@ Q_INVOKABLE void I2cif::i2cWrite(const uint8_t &slaveAddr, const uint16_t &write
         return;
     }
 
-    // prepare buffer to write
-    buf[0] = (writeAddress >> 8) & 0xFF;   // writeAddress high byte
-    buf[1] = writeAddress & 0xFF;          // writeAddress low byte
-    buf[2] = data & 0xFF;                  // data
+    buf[0] = (writeAddress >> 8) & 0xFF; // High byte
+    buf[1] = writeAddress & 0xFF;        // Low byte
+    buf[2] = (data >> 8) & 0xFF;         // High byte
+    buf[3] = data & 0xFF;                // Low byte
+
+    fprintf(stderr, "Data to be written: ");
+    for (int i = 0; i < 4; i++) {
+        fprintf(stderr, "%02x ", buf[i]);
+    }
+    fprintf(stderr, "\n");
 
     /* write the data */
-    if (write(file, buf, sizeof(buf)) != sizeof(buf))
+    if (write(file, buf, 4) != 4)
     {
         close(file);
         fprintf(stderr,"write error\n");
@@ -148,7 +153,6 @@ Q_INVOKABLE void I2cif::i2cWrite(const uint8_t &slaveAddr, const uint16_t &write
     fprintf(stderr,"write ok\n");
 
     emit i2cWriteOk();
-
 }
 
 void I2cif::i2cRead(const uint8_t &slaveAddr, const uint16_t &startAddress, const uint16_t &nMemAddressRead, uint16_t *data)
