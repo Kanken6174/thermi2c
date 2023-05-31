@@ -15,11 +15,14 @@ TARGET = thermi2c
 CONFIG += sailfishapp
 
 SOURCES += src/thermi2c.cpp \
+    command.cpp \
+    pollingtimer.cpp \
     src/mlx90640_API.cpp \
     src/mlx90640_I2C_Driver.cpp \
     src/conv.cpp \
     src/i2cdriversingleton.cpp \
-    src/i2cif.cpp
+    src/i2cif.cpp \
+    thermaldatarenderer.cpp
 
 DISTFILES += qml/thermi2c.qml \
     qml/cover/CoverPage.qml \
@@ -44,8 +47,12 @@ CONFIG += sailfishapp_i18n
 TRANSLATIONS += translations/thermi2c-de.ts
 
 HEADERS += \
+    command.h \
+    datapollcommand.h \
+    pollingtimer.h \
     src/mlx90640_API.h \
     src/mlx90640_I2C_Driver.h \
     src/conv.h \
     src/i2cdriversingleton.h \
-    src/i2cif.h
+    src/i2cif.h \
+    thermaldatarenderer.h
