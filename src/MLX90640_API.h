@@ -21,7 +21,7 @@
 #include <QStringList>
 #include <QVector>
 #include <array>
-
+#include <unistd.h>
 #define mlx90640_DEV_ADDR 0x33
 
 #define mlx90640_NO_ERROR 0
@@ -166,38 +166,59 @@ public:
 
     Q_INVOKABLE void fuzzyInit(){
         int status;
-        status = mlx90640_SetRefreshRate (0x33,0x05);   //16hz
+        uint16_t eeMLX90640[832];
+        status = mlx90640_SetRefreshRate (0x33,0x06);   //32hz
+        int curRR = mlx90640_GetRefreshRate (0x33);
+        fprintf(stderr, "refresh rate: %d\n", curRR);
         status = mlx90640_SetResolution(0x33,0x00);     //16 bit res
+        //status = mlx90640_SetInterleavedMode (0x33);      //linear interlacing mode
         status = mlx90640_SetChessMode (0x33);          //chess interlacing mode
-        getData();                                      //test read(initial)
+        int mode = mlx90640_GetCurMode(0x33);
+        fprintf(stderr, "interlacing mode: %d\n", mode);
+        usleep(10000);
 
-        // Print out the array
-        for (int i = 0; i < imageVect.size(); ++i) {
-            fprintf(stderr, "ImageVect[%d]: %f\n", i, imageVect[i]);
-        }
+        fprintf(stderr, "dump EEprom...\n");
+        status = mlx90640_DumpEE (slaveAddress, eeMLX90640);
+        usleep(1000);
+        fprintf(stderr, "extract parameters...\n");
+        status = mlx90640_ExtractParameters(eeMLX90640, &mlx90640);
+        usleep(1000);
+
+        getData();                                      //test read(initial)
 
         emit initializedChanged();
     }
 
     Q_INVOKABLE void getData(){
-        uint16_t eeMLX90640[832];
         uint16_t mlx90640Frame[834];
         float mlx90640Image[768];
         int status;
-
-        status = mlx90640_DumpEE (slaveAddress, eeMLX90640);
-        status = mlx90640_ExtractParameters(eeMLX90640, &mlx90640);
+        //fprintf(stderr, "trigger measurement...\n");
+        //status = mlx90640_TriggerMeasurement (0x33);
+        fprintf(stderr, "sync frame...\n");
+        status = mlx90640_SynchFrame(0x33);
         status = mlx90640_GetFrameData (0x33, mlx90640Frame);
         mlx90640_GetImage(mlx90640Frame, &mlx90640, mlx90640Image);
 
         for (int i = 0; i < 767; ++i) {
             imageVect[i] = mlx90640Image[i];
+            fprintf(stderr, "ImageVect[%d]: %f\n", i, imageVect[i]);
         }
 
         emit dataReady();
     }
 
-    MLX90640() : imageVect(768){}
+    Q_INVOKABLE float getImageVectAt(int index) {
+        if(index >= 0 && index < imageVect.size()) {
+            return imageVect.at(index);
+        } else {
+            return -1;
+        }
+    }
+
+    MLX90640() : imageVect(768){
+        fuzzyInit();
+    }
 
     QVector<float> imageVect;
 protected:

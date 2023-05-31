@@ -18,6 +18,7 @@
 #include <iostream>
 #include <iomanip>
 #include <netinet/in.h>
+#include <algorithm>
 
 #define DEFAULT_I2C_DEV QString("/dev/i2c-1/")
 
@@ -160,6 +161,8 @@ void I2cif::i2cRead(const uint8_t &slaveAddr, const uint16_t &startAddress, cons
     int file;
     Conv conv;
     m_readResult = QString();
+    uint16_t addr = startAddress;
+    __u8 *buf = new __u8[2 * nMemAddressRead];
 
     const char* devNameChar = "/dev/i2c-1";
 
@@ -167,6 +170,7 @@ void I2cif::i2cRead(const uint8_t &slaveAddr, const uint16_t &startAddress, cons
     {
         fprintf(stderr,"open error\n");
         emit i2cError();
+        delete[] buf;
         return;
     }
 
@@ -185,30 +189,51 @@ void I2cif::i2cRead(const uint8_t &slaveAddr, const uint16_t &startAddress, cons
 
     i2c_data.msgs[1].addr = slaveAddr;
     i2c_data.msgs[1].flags = I2C_M_RD;
-    i2c_data.msgs[1].len = nMemAddressRead;
-    i2c_data.msgs[1].buf = (__u8 *)data;
 
-    int ret = ioctl(file, I2C_RDWR, &i2c_data);
+    constexpr uint16_t ChunkSize = 32; // 64 bytes (32 uint16_t)
+    uint16_t chunks = nMemAddressRead / ChunkSize;
+    uint16_t remainder = nMemAddressRead % ChunkSize;
 
-    if (ret < 0)
-    {
+    for (uint16_t chunk = 0; chunk <= chunks; chunk++) {
+        uint16_t length = (chunk == chunks ? remainder : ChunkSize);
+        if (length == 0)
+            break;
+
+        regAddrBytes[0] = (addr >> 8) & 0xFF; // High byte
+        regAddrBytes[1] = addr & 0xFF; // Low byte
+
+        i2c_data.msgs[0].buf = regAddrBytes;
+
+        i2c_data.msgs[1].len = length * 2;
+        i2c_data.msgs[1].buf = &buf[chunk * ChunkSize * 2];
+
+        int ret = ioctl(file, I2C_RDWR, &i2c_data);
+
+        if (ret < 0) {
             fprintf(stderr, "read data fail %d\n", ret);
             emit i2cError();
+            delete[] buf;
             return;
+        }
+
+        fprintf(stderr, "read ");
+        for (uint16_t i = 0; i < length; ++i) {
+            uint16_t index = chunk * ChunkSize + i;
+            data[index] = ((buf[2 * index] << 8) == 0xFF ? 0x00 : (buf[2 * index] << 8)) | buf[2 * index + 1];
+            m_readResult = m_readResult + conv.toHex(data[index], 4) + " ";
+            fprintf(stderr, "%04x ", data[index]);
+        }
+        fprintf(stderr, "\n");
+        // Wait 0.4ms before next chunk
+        usleep(400);
+        addr += ChunkSize;
     }
 
-    close(file);
 
-    fprintf(stderr, "read ");
-    for (int i=0; i<nMemAddressRead ; i++)
-    {
-        data[i] = htons(data[i]);
-        m_readResult = m_readResult + conv.toHex(data[i],2) + " ";
-        fprintf(stderr, "%02x ", data[i]);
-    }
     fprintf(stderr, "\n");
-
+    delete[] buf;
     emit i2cReadResultChanged();
+    close(file);
 }
 
 
