@@ -24,6 +24,16 @@ class ThermalDataRenderer : public QObject
     float maxValue = 1.0f;
 public:
     Q_PROPERTY(QVector<std::shared_ptr<ColorAttributer>> attributers READ getAttributers NOTIFY attributersChanged)
+    Q_PROPERTY(QStringList attributerNames READ getAttributerNames NOTIFY attributerNamesChanged)
+
+    QStringList getAttributerNames() const {
+        QStringList names;
+        for (const auto& attributer : attributers) {
+            names << attributer->getName();
+        }
+        return names;
+    }
+
     QThread workerThread;
     ThermalDataRenderer() : renderBuffer(768){}
     Q_INVOKABLE QColor getDataForIndex(const int& index){
@@ -36,6 +46,7 @@ public:
 
     inline void addAttributer(ColorAttributerPtr attributer) {
         attributers.push_back(attributer);
+        emit attributerNamesChanged();
     }
 
     inline QVector<ColorAttributerPtr> getAttributers(){ return attributers; }
@@ -69,6 +80,7 @@ public:
 public: signals:
     void attributersChanged();
     void dataChanged();
+    void attributerNamesChanged();
 
 public slots:
     void receiveNewData(QVector<float> data);

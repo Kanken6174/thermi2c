@@ -43,9 +43,35 @@ int main(int argc, char *argv[]) {
     grayscale->addColor(0.75, QColor(200, 200, 200)); // light gray
     grayscale->addColor(1.0, QColor(255, 255, 255)); // White
 
+    auto sunset = std::make_shared<ColorAttributer>("sunset");
+    sunset->addColor(0.0, QColor(255, 80, 80)); // Deep red
+    sunset->addColor(0.2, QColor(255, 165, 0)); // Orange
+    sunset->addColor(0.4, QColor(255, 255, 0)); // Yellow
+    sunset->addColor(0.6, QColor(255, 204, 0)); // Gold
+    sunset->addColor(0.8, QColor(255, 102, 0)); // Orange-red
+    sunset->addColor(1.0, QColor(255, 0, 0)); // Red
+
+    auto ocean = std::make_shared<ColorAttributer>("ocean");
+    ocean->addColor(0.0, QColor(0, 0, 255)); // Blue
+    ocean->addColor(0.25, QColor(0, 128, 255)); // Light blue
+    ocean->addColor(0.5, QColor(0, 255, 255)); // Cyan
+    ocean->addColor(0.75, QColor(0, 204, 128)); // Sea green
+    ocean->addColor(1.0, QColor(0, 51, 102)); // Dark blue
+
+    auto fire = std::make_shared<ColorAttributer>("fire");
+    fire->addColor(0.0, QColor(255, 0, 0)); // Red
+    fire->addColor(0.2, QColor(255, 102, 0)); // Orange-red
+    fire->addColor(0.4, QColor(255, 153, 0)); // Orange
+    fire->addColor(0.6, QColor(255, 204, 0)); // Yellow
+    fire->addColor(0.8, QColor(255, 255, 0)); // Bright yellow
+    fire->addColor(1.0, QColor(255, 255, 255)); // White
+
     thermalRenderer->addAttributer(hotIron);
     thermalRenderer->addAttributer(rainbow);
     thermalRenderer->addAttributer(grayscale);
+    thermalRenderer->addAttributer(sunset);
+    thermalRenderer->addAttributer(ocean);
+    thermalRenderer->addAttributer(fire);
 
     thermalRenderer->setActiveAttributer(2);//enable hotiron
 

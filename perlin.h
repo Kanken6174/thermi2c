@@ -7,6 +7,10 @@
 
 class Perlin
 {
+private:
+    float t = 0.5f;
+    float k = 0.0f;
+    bool breatheIn = false;
 public:
     Perlin();
     float interpolate(float a, float b, float x) {
@@ -17,10 +21,13 @@ public:
     float noise(int x, int y, float t, int seed) {
         int n = x + y * 57 + int(t) * 131 + seed;
         n = (n << 13) ^ n;
-        return (1.0 - ((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824.0);
+        float result = (1.0 - ((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824.0);
+        return result + t;
     }
 
     float perlinNoise(float x, float y, float t, int seed) {
+        seed /= 2;
+
         int wholePartX = (int)x;
         float fractionalPartX = x - wholePartX;
 
@@ -39,15 +46,21 @@ public:
     }
     void fillWithPerlinNoise(QVector<float>& vector, int width, int height, int seed) {
         fprintf(stderr, "creating noise..\n");
-        float t = 0.0f;
+        float scale = 0.15f;
+        seed += k;
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; ++x) {
-                float noise = perlinNoise(x / (float)width, y / (float)height, t, seed);
+                float noise = perlinNoise(x / (float)(width * scale), y / (float)(height * scale), t, seed);
                 vector[(y * width + x)] = noise;
             }
-            t += 0.01f; // flow speed variable
+            t += breatheIn ? 0.005 : -0.005;
+            if(t > 0.7 || t < 0){
+                breatheIn = !breatheIn;
+            }
+            k += 0.01;
         }
     }
+
 };
 
 #endif // PERLIN_H

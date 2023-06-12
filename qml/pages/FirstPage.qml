@@ -7,12 +7,44 @@ Page {
     id: mainPage
     property bool isInitialized: false
 
-    SilicaFlickable {
+    SilicaListView  {
         anchors.fill: parent
+        PullDownMenu {
+            id: menu
 
+            Repeater {
+                id: repk
+                model: thermalRenderer.attributerNames
+                delegate: MenuItem {
+                    text: modelData
+                    onClicked: {
+                        console.log("Clicked " + text)
+                        thermalRenderer.setActiveAttributer(index)
+                    }
+                }
+            }
+        }
         Column {
-            anchors.horizontalCenter: parent.horizontalCenter
+            id: column
+            width: parent.width
+            spacing: Theme.paddingLarge
 
+            PageHeader
+            {
+                title: "ThermI2C"
+            }
+
+        Connections {
+            target: thermalRenderer
+            onAttributersChanged: {
+                repk.model = []
+                repk.model = thermalRenderer.attributerNames
+                }
+            }
+
+        Row
+        {
+            anchors.horizontalCenter: parent.horizontalCenter
             Button {
                 id: startButton
                 text: mainPage.isInitialized ? "Stop" : "Start"
@@ -28,10 +60,18 @@ Page {
                 }
 
             }
+        }
 
+        Row
+        {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.verticalCenter:  parent.verticalCenter
+            anchors.verticalCenterOffset: -100
             Grid {
                 id: grid
                 columns: 32
+                y: parent.height + height
+                x: (parent.width + width) / 2
                 Repeater {
                     id: repeater
                     model: 768
@@ -53,24 +93,8 @@ Page {
                         }
                     }
                 }
-
             }
-
-            ComboBox{
-                id: themes
-                anchors.horizontalCenter: parent.horizontalCenter
-                label: "Theme: "
-                currentIndex: 2
-                menu: ContextMenu
-                {
-                    MenuItem { text: "hotiron" }
-                    MenuItem { text: "rainbow" }
-                    MenuItem { text: "gray" }
-                }
-                onCurrentIndexChanged: {
-                    thermalRenderer.setActiveAttributer(themes.currentIndex);
-                }
-              }
+        }
         }
     }
 }

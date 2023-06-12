@@ -187,7 +187,7 @@ public:
             status = mlx90640_DumpEE (slaveAddress, eeMLX90640);
             usleep(1000);
             if(status != 0){
-                perlin.fillWithPerlinNoise(imageVect, 32, 24, 0xBEEF);
+                perlin.fillWithPerlinNoise(imageVect, 32, 24, 1234567);
                 emit initializedChanged();
                 emit dataReady(imageVect);
                 return;
@@ -198,11 +198,11 @@ public:
             if(status == 0)
                 getData();
             else{
-                perlin.fillWithPerlinNoise(imageVect, 32, 24, 0xBEEF);
+                perlin.fillWithPerlinNoise(imageVect, 32, 24, 1234567);
                 emit dataReady(imageVect);
             }
         }catch(...){
-            perlin.fillWithPerlinNoise(imageVect, 32, 24, 0xBEEF);
+            perlin.fillWithPerlinNoise(imageVect, 32, 24, 1234567);
         }
 
         emit initializedChanged();
@@ -226,7 +226,7 @@ public:
                 imageVect[i] = mlx90640Image[i];
             }
         } else {
-            perlin.fillWithPerlinNoise(imageVect, 32, 24, 0xBEEF);
+            perlin.fillWithPerlinNoise(imageVect, 32, 24, 1234567);
         }
 
         emit dataReady(imageVect);
