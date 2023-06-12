@@ -15,7 +15,9 @@ TARGET = thermi2c
 CONFIG += sailfishapp
 
 SOURCES += src/thermi2c.cpp \
+    colorattributer.cpp \
     command.cpp \
+    perlin.cpp \
     pollingtimer.cpp \
     src/mlx90640_API.cpp \
     src/mlx90640_I2C_Driver.cpp \
@@ -47,8 +49,10 @@ CONFIG += sailfishapp_i18n
 TRANSLATIONS += translations/thermi2c-de.ts
 
 HEADERS += \
+    colorattributer.h \
     command.h \
     datapollcommand.h \
+    perlin.h \
     pollingtimer.h \
     src/mlx90640_API.h \
     src/mlx90640_I2C_Driver.h \

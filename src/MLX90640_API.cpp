@@ -14,8 +14,8 @@
  * limitations under the License.
  *
  */
-#include "mlx90640_I2C_Driver.h"
 #include "mlx90640_API.h"
+#include "MLX90640_I2C_Driver.h"
 #include <math.h>
 
 int MLX90640::mlx90640_DumpEE(uint8_t slaveAddr, uint16_t *eeData)

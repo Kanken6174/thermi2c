@@ -3,8 +3,9 @@
 
 #include <QObject>
 
-class Command
+class Command : public QObject
 {
+    Q_OBJECT
 public:
     Command();
     virtual void exec() = 0;

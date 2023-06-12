@@ -19,17 +19,14 @@ Page {
                 onClicked: {
                     if(mainPage.isInitialized){
                         mainPage.isInitialized = false;
-                        pollingTimer.stop();
+                        polling_timer.stop();
                     }else{
                         mainPage.isInitialized = true;
                         mlx90640.fuzzyInit();
-                        pollingTimer.start();
+                        polling_timer.start();
                     }
                 }
 
-                TextArea{
-                    text:  mlx90640.getImageVectAt(100)
-                }
             }
 
             Grid {
@@ -42,36 +39,38 @@ Page {
                         id: rectangle
                         width: 15
                         height: 15
-                        property int rowIndex: Math.floor(index / 32)
-                        property int columnIndex: index % 32
-                        property int invertedIndex: (23 - rowIndex) * 32 + columnIndex
-                        property real value: mlx90640.getImageVectAt(invertedIndex)
-                        property real minValue: -3000000.000000
-                        property real maxValue: -1000000.000000
-                        property real hue: 0.67 - ((value - minValue) / (maxValue - minValue) * 0.67)
-                        property color sensorColor: Qt.hsva(hue, 1, 1, 1)
-                        color: sensorColor
+                        color: thermalRenderer.getDataForIndex(index)
                     }
                 }
-
                 Connections {
-                    target: mlx90640
-                    onDataReady: {
-                        // force the repeater to update its items
-                        repeater.model = [];
-                        repeater.model = 768;
+                    target: thermalRenderer
+                    onDataChanged: {
+                        for (var i = 0; i < repeater.count; i++) {
+                            var item = repeater.itemAt(i);
+                            if (item) {
+                                item.color = thermalRenderer.getDataForIndex(i);
+                            }
+                        }
                     }
                 }
+
             }
 
-            Timer {
-                id: pollingTimer
-                interval: 70
-                repeat: true
-                onTriggered: {
-                    mlx90640.getData();
+            ComboBox{
+                id: themes
+                anchors.horizontalCenter: parent.horizontalCenter
+                label: "Theme: "
+                currentIndex: 2
+                menu: ContextMenu
+                {
+                    MenuItem { text: "hotiron" }
+                    MenuItem { text: "rainbow" }
+                    MenuItem { text: "gray" }
                 }
-            }
+                onCurrentIndexChanged: {
+                    thermalRenderer.setActiveAttributer(themes.currentIndex);
+                }
+              }
         }
     }
 }

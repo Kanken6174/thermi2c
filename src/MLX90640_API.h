@@ -22,6 +22,9 @@
 #include <QVector>
 #include <array>
 #include <unistd.h>
+
+#include "perlin.h"
+
 #define mlx90640_DEV_ADDR 0x33
 
 #define mlx90640_NO_ERROR 0
@@ -142,6 +145,7 @@ public:
             uint16_t outlierPixels[5];
         } paramsMLX90640;
 
+
     unsigned char slaveAddress = 0x33;
     paramsMLX90640 mlx90640;
 
@@ -193,19 +197,21 @@ public:
         uint16_t mlx90640Frame[834];
         float mlx90640Image[768];
         int status;
-        //fprintf(stderr, "trigger measurement...\n");
         //status = mlx90640_TriggerMeasurement (0x33);
-        fprintf(stderr, "sync frame...\n");
         status = mlx90640_SynchFrame(0x33);
         status = mlx90640_GetFrameData (0x33, mlx90640Frame);
-        mlx90640_GetImage(mlx90640Frame, &mlx90640, mlx90640Image);
 
-        for (int i = 0; i < 767; ++i) {
-            imageVect[i] = mlx90640Image[i];
-            fprintf(stderr, "ImageVect[%d]: %f\n", i, imageVect[i]);
+        if (status == 0) {
+            mlx90640_GetImage(mlx90640Frame, &mlx90640, mlx90640Image);
+            for (int i = 0; i < 767; ++i) {
+                imageVect[i] = mlx90640Image[i];
+            }
+        } else {
+            Perlin perlin;
+            perlin.fillWithPerlinNoise(imageVect, 32, 24, 0xBEEF);
         }
 
-        emit dataReady();
+        emit dataReady(imageVect);
     }
 
     Q_INVOKABLE float getImageVectAt(int index) {
@@ -241,8 +247,9 @@ protected:
     int IsPixelBad(uint16_t pixel,paramsMLX90640 *params);
     int ValidateFrameData(uint16_t *frameData);
     int ValidateAuxData(uint16_t *auxData);
+    Perlin perlin;
 signals:
-    void dataReady();
+    void dataReady(QVector<float> data);
     void initializedChanged();
 };
 #endif

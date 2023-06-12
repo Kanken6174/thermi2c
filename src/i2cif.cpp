@@ -27,11 +27,13 @@ I2cif::I2cif(QObject *parent) :
 {
     m_probingResult = QStringList();
     m_readResult = "Nothing yet";
+    tohVddSet("on");
     emit tohVddStatusChanged();
 }
 
 I2cif::~I2cif()
 {
+    tohVddSet("off");
 }
 
 
@@ -112,7 +114,7 @@ Q_INVOKABLE void I2cif::i2cWrite(const uint8_t &slaveAddr, const uint16_t &write
 
     const char* devNameChar = "/dev/i2c-1";
 
-    fprintf(stderr, "writing to address %02x: ", slaveAddr);
+    //fprintf(stderr, "writing to address %02x: ", slaveAddr);
 
     if ((file = open (devNameChar, O_RDWR)) < 0)
     {
@@ -134,12 +136,12 @@ Q_INVOKABLE void I2cif::i2cWrite(const uint8_t &slaveAddr, const uint16_t &write
     buf[2] = (data >> 8) & 0xFF;         // High byte
     buf[3] = data & 0xFF;                // Low byte
 
-    fprintf(stderr, "Data to be written: ");
+    /*fprintf(stderr, "Data to be written: ");
     for (int i = 0; i < 4; i++) {
         fprintf(stderr, "%02x ", buf[i]);
     }
     fprintf(stderr, "\n");
-
+*/
     /* write the data */
     if (write(file, buf, 4) != 4)
     {
@@ -151,7 +153,7 @@ Q_INVOKABLE void I2cif::i2cWrite(const uint8_t &slaveAddr, const uint16_t &write
 
     close(file);
 
-    fprintf(stderr,"write ok\n");
+    //fprintf(stderr,"write ok\n");
 
     emit i2cWriteOk();
 }
@@ -190,7 +192,7 @@ void I2cif::i2cRead(const uint8_t &slaveAddr, const uint16_t &startAddress, cons
     i2c_data.msgs[1].addr = slaveAddr;
     i2c_data.msgs[1].flags = I2C_M_RD;
 
-    constexpr uint16_t ChunkSize = 32; // 64 bytes (32 uint16_t)
+    constexpr uint16_t ChunkSize = 32; // 192 bytes (96 uint16_t)
     uint16_t chunks = nMemAddressRead / ChunkSize;
     uint16_t remainder = nMemAddressRead % ChunkSize;
 
@@ -216,21 +218,21 @@ void I2cif::i2cRead(const uint8_t &slaveAddr, const uint16_t &startAddress, cons
             return;
         }
 
-        fprintf(stderr, "read ");
+        //fprintf(stderr, "read ");
         for (uint16_t i = 0; i < length; ++i) {
             uint16_t index = chunk * ChunkSize + i;
             data[index] = ((buf[2 * index] << 8) == 0xFF ? 0x00 : (buf[2 * index] << 8)) | buf[2 * index + 1];
             m_readResult = m_readResult + conv.toHex(data[index], 4) + " ";
-            fprintf(stderr, "%04x ", data[index]);
+            //fprintf(stderr, "%04x ", data[index]);
         }
-        fprintf(stderr, "\n");
+        //fprintf(stderr, "\n");
         // Wait 0.4ms before next chunk
         usleep(400);
         addr += ChunkSize;
     }
 
 
-    fprintf(stderr, "\n");
+    //fprintf(stderr, "\n");
     delete[] buf;
     emit i2cReadResultChanged();
     close(file);

@@ -1,24 +1,36 @@
 #include "pollingtimer.h"
 #include <chrono>
 
-void PollingTimer::start(){
-    shouldRun = true;
-}
+#include "pollingtimer.h"
+#include <chrono>
 
-void PollingTimer::stop(){
-    shouldRun = false;
-}
-
-void PollingTimer::doLoop(){
-    std::chrono::steady_clock::time_point begin;
-    std::chrono::steady_clock::time_point end;
-
-    while(shouldRun){
-        begin = std::chrono::steady_clock::now();
+void PollingTimer::doLoop() {
+    while (shouldRun) {
+        auto start = std::chrono::high_resolution_clock::now();
         _c->exec();
-        end = std::chrono::steady_clock::now();
-        std::this_thread::sleep_for(
-                    std::chrono::microseconds((this->timeout)
-                    - std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()));
+        auto end = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        if (elapsed < this->timeout) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(this->timeout - elapsed));
+        }
+        fprintf(stderr, "time elapsed: %lld",elapsed);
     }
 }
+
+void PollingTimer::start() {
+    if (myThread != nullptr) {
+        stop();
+    }
+    shouldRun = true;
+    myThread = new std::thread([this]() { this->doLoop(); });
+}
+
+void PollingTimer::stop() {
+    if (myThread != nullptr) {
+        shouldRun = false;
+        myThread->join();
+        delete myThread;
+        myThread = nullptr;
+    }
+}
+
