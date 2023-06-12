@@ -113,6 +113,7 @@ public:
             emit initializedChanged();
         }
     }
+    Perlin perlin;
 
     typedef struct
         {
@@ -171,24 +172,38 @@ public:
     Q_INVOKABLE void fuzzyInit(){
         int status;
         uint16_t eeMLX90640[832];
-        status = mlx90640_SetRefreshRate (0x33,0x06);   //32hz
-        int curRR = mlx90640_GetRefreshRate (0x33);
-        fprintf(stderr, "refresh rate: %d\n", curRR);
-        status = mlx90640_SetResolution(0x33,0x00);     //16 bit res
-        //status = mlx90640_SetInterleavedMode (0x33);      //linear interlacing mode
-        status = mlx90640_SetChessMode (0x33);          //chess interlacing mode
-        int mode = mlx90640_GetCurMode(0x33);
-        fprintf(stderr, "interlacing mode: %d\n", mode);
-        usleep(10000);
+        try{
+            status = mlx90640_SetRefreshRate (0x33,0x06);   //32hz
+            int curRR = mlx90640_GetRefreshRate (0x33);
+            fprintf(stderr, "refresh rate: %d\n", curRR);
+            status = mlx90640_SetResolution(0x33,0x00);     //16 bit res
+            //status = mlx90640_SetInterleavedMode (0x33);      //linear interlacing mode
+            status = mlx90640_SetChessMode (0x33);          //chess interlacing mode
+            int mode = mlx90640_GetCurMode(0x33);
+            fprintf(stderr, "interlacing mode: %d\n", mode);
+            usleep(10000);
 
-        fprintf(stderr, "dump EEprom...\n");
-        status = mlx90640_DumpEE (slaveAddress, eeMLX90640);
-        usleep(1000);
-        fprintf(stderr, "extract parameters...\n");
-        status = mlx90640_ExtractParameters(eeMLX90640, &mlx90640);
-        usleep(1000);
-
-        getData();                                      //test read(initial)
+            fprintf(stderr, "dump EEprom...\n");
+            status = mlx90640_DumpEE (slaveAddress, eeMLX90640);
+            usleep(1000);
+            if(status != 0){
+                perlin.fillWithPerlinNoise(imageVect, 32, 24, 0xBEEF);
+                emit initializedChanged();
+                emit dataReady(imageVect);
+                return;
+            }
+            fprintf(stderr, "extract parameters...\n");
+            status = mlx90640_ExtractParameters(eeMLX90640, &mlx90640);
+            usleep(1000);
+            if(status == 0)
+                getData();
+            else{
+                perlin.fillWithPerlinNoise(imageVect, 32, 24, 0xBEEF);
+                emit dataReady(imageVect);
+            }
+        }catch(...){
+            perlin.fillWithPerlinNoise(imageVect, 32, 24, 0xBEEF);
+        }
 
         emit initializedChanged();
     }
@@ -198,8 +213,12 @@ public:
         float mlx90640Image[768];
         int status;
         //status = mlx90640_TriggerMeasurement (0x33);
-        status = mlx90640_SynchFrame(0x33);
-        status = mlx90640_GetFrameData (0x33, mlx90640Frame);
+        try{
+            status = mlx90640_SynchFrame(0x33);
+            status = mlx90640_GetFrameData (0x33, mlx90640Frame);
+        }catch(...){
+           status = -1;
+        }
 
         if (status == 0) {
             mlx90640_GetImage(mlx90640Frame, &mlx90640, mlx90640Image);
@@ -207,7 +226,6 @@ public:
                 imageVect[i] = mlx90640Image[i];
             }
         } else {
-            Perlin perlin;
             perlin.fillWithPerlinNoise(imageVect, 32, 24, 0xBEEF);
         }
 
@@ -247,7 +265,6 @@ protected:
     int IsPixelBad(uint16_t pixel,paramsMLX90640 *params);
     int ValidateFrameData(uint16_t *frameData);
     int ValidateAuxData(uint16_t *auxData);
-    Perlin perlin;
 signals:
     void dataReady(QVector<float> data);
     void initializedChanged();

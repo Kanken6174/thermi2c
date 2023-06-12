@@ -29,12 +29,10 @@ void mlx90640_I2CFreqSet(int freq){
 }
 
 int mlx90640_I2CRead(uint8_t slaveAddr,uint16_t startAddress, uint16_t nMemAddressRead, uint16_t *data){
-    i2cDriverSingleton::getinstance()->i2cRead(slaveAddr, startAddress, nMemAddressRead, data);
-    return 0;
+    return i2cDriverSingleton::getinstance()->i2cRead(slaveAddr, startAddress, nMemAddressRead, data);
 }
 
 int mlx90640_I2CWrite(uint8_t slaveAddr,uint16_t writeAddress, uint16_t data)
 {
-    i2cDriverSingleton::getinstance()->i2cWrite(slaveAddr, writeAddress, data);
-    return 0;
+    return i2cDriverSingleton::getinstance()->i2cWrite(slaveAddr, writeAddress, data);
 }

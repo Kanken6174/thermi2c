@@ -38,6 +38,7 @@ public:
         return interpolate(i1, i2, fractionalPartY);
     }
     void fillWithPerlinNoise(QVector<float>& vector, int width, int height, int seed) {
+        fprintf(stderr, "creating noise..\n");
         float t = 0.0f;
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; ++x) {

@@ -22,8 +22,8 @@ public:
     Q_INVOKABLE void i2cProbe(QString devName);
     Q_INVOKABLE void i2cWrite(QString devName, unsigned char address, QString data);
     Q_INVOKABLE void i2cRead(QString devName, unsigned char address, int count);
-    Q_INVOKABLE void i2cWrite(const uint8_t &slaveAddr,const uint16_t &writeAddress,const uint16_t &data);
-    Q_INVOKABLE void i2cRead(const uint8_t &slaveAddr,const uint16_t &startAddress, const uint16_t &nMemAddressRead,uint16_t *data);
+    Q_INVOKABLE int i2cWrite(const uint8_t &slaveAddr,const uint16_t &writeAddress,const uint16_t &data);
+    Q_INVOKABLE int i2cRead(const uint8_t &slaveAddr,const uint16_t &startAddress, const uint16_t &nMemAddressRead,uint16_t *data);
     Q_INVOKABLE void i2cWriteThenRead(QString devName, unsigned char address, QString data, int count);
 
     Q_INVOKABLE void tohVddSet(QString onOff);

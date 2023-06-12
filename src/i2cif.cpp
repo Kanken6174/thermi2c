@@ -108,7 +108,7 @@ bool I2cif::tohVddGet()
  *
  */
 
-Q_INVOKABLE void I2cif::i2cWrite(const uint8_t &slaveAddr, const uint16_t &writeAddress, const uint16_t &data){
+Q_INVOKABLE int I2cif::i2cWrite(const uint8_t &slaveAddr, const uint16_t &writeAddress, const uint16_t &data){
     int file;
     __u8 buf[4];
 
@@ -120,7 +120,7 @@ Q_INVOKABLE void I2cif::i2cWrite(const uint8_t &slaveAddr, const uint16_t &write
     {
         fprintf(stderr,"open error\n");
         emit i2cError();
-        return;
+        return -1;
     }
 
     if (ioctl(file, I2C_SLAVE, slaveAddr) < 0)
@@ -128,7 +128,7 @@ Q_INVOKABLE void I2cif::i2cWrite(const uint8_t &slaveAddr, const uint16_t &write
         close(file);
         fprintf(stderr,"ioctl error\n");
         emit i2cError();
-        return;
+        return -1;
     }
 
     buf[0] = (writeAddress >> 8) & 0xFF; // High byte
@@ -148,7 +148,7 @@ Q_INVOKABLE void I2cif::i2cWrite(const uint8_t &slaveAddr, const uint16_t &write
         close(file);
         fprintf(stderr,"write error\n");
         emit i2cError();
-        return;
+        return -1;
     }
 
     close(file);
@@ -156,9 +156,10 @@ Q_INVOKABLE void I2cif::i2cWrite(const uint8_t &slaveAddr, const uint16_t &write
     //fprintf(stderr,"write ok\n");
 
     emit i2cWriteOk();
+    return 0;
 }
 
-void I2cif::i2cRead(const uint8_t &slaveAddr, const uint16_t &startAddress, const uint16_t &nMemAddressRead, uint16_t *data)
+int I2cif::i2cRead(const uint8_t &slaveAddr, const uint16_t &startAddress, const uint16_t &nMemAddressRead, uint16_t *data)
 {
     int file;
     Conv conv;
@@ -173,7 +174,7 @@ void I2cif::i2cRead(const uint8_t &slaveAddr, const uint16_t &startAddress, cons
         fprintf(stderr,"open error\n");
         emit i2cError();
         delete[] buf;
-        return;
+        return -1;
     }
 
     struct i2c_rdwr_ioctl_data i2c_data;
@@ -215,7 +216,7 @@ void I2cif::i2cRead(const uint8_t &slaveAddr, const uint16_t &startAddress, cons
             fprintf(stderr, "read data fail %d\n", ret);
             emit i2cError();
             delete[] buf;
-            return;
+            return -1;
         }
 
         //fprintf(stderr, "read ");
@@ -236,6 +237,8 @@ void I2cif::i2cRead(const uint8_t &slaveAddr, const uint16_t &startAddress, cons
     delete[] buf;
     emit i2cReadResultChanged();
     close(file);
+
+    return 0;
 }
 
 
