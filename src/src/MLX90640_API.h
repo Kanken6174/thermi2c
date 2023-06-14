@@ -89,6 +89,8 @@
 
 #include <stdint.h>
 
+#define IGNORE_I2C_DISCONNECTS  //comment out this line to enable noise generation / demo mode
+
 class MLX90640 : public QObject
 {
     Q_OBJECT
@@ -186,23 +188,31 @@ public:
             fprintf(stderr, "dump EEprom...\n");
             status = mlx90640_DumpEE (slaveAddress, eeMLX90640);
             usleep(1000);
+#ifndef IGNORE_I2C_DISCONNECTS
             if(status != 0){
                 perlin.fillWithPerlinNoise(imageVect, 32, 24, 1234567);
                 emit initializedChanged();
                 emit dataReady(imageVect);
                 return;
             }
+#endif
             fprintf(stderr, "extract parameters...\n");
             status = mlx90640_ExtractParameters(eeMLX90640, &mlx90640);
             usleep(1000);
+            #ifndef IGNORE_I2C_DISCONNECTS
             if(status == 0)
                 getData();
             else{
                 perlin.fillWithPerlinNoise(imageVect, 32, 24, 1234567);
                 emit dataReady(imageVect);
             }
+            #else
+            getData();
+            #endif
         }catch(...){
+            #ifndef IGNORE_I2C_DISCONNECTS
             perlin.fillWithPerlinNoise(imageVect, 32, 24, 1234567);
+            #endif
         }
 
         emit initializedChanged();
@@ -226,7 +236,9 @@ public:
                 imageVect[i] = mlx90640Image[i];
             }
         } else {
+            #ifndef IGNORE_I2C_DISCONNECTS
             perlin.fillWithPerlinNoise(imageVect, 32, 24, 1234567);
+            #endif
         }
 
         emit dataReady(imageVect);
